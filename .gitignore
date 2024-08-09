@@ -1,0 +1,4 @@
+*.o
+chess
+*.vscode
+Makefile.dep
