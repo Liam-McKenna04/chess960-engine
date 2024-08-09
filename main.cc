@@ -1,75 +1,15 @@
 #include <SFML/Graphics.hpp>
+#include <iostream>
 
 #include "Piece.hpp"
 const int BOARD_SIZE = 8;
 const int SQUARE_SIZE = 80;
+sf::Vector2f offset(0, 0);
 
 int size = 133;
 
-int board[64] = {Piece::create(Piece::Rook, Piece::Black),
-                 Piece::create(Piece::Knight, Piece::Black),
-                 Piece::create(Piece::Bishop, Piece::Black),
-                 Piece::create(Piece::Queen, Piece::Black),
-                 Piece::create(Piece::King, Piece::Black),
-                 Piece::create(Piece::Bishop, Piece::Black),
-                 Piece::create(Piece::Knight, Piece::Black),
-                 Piece::create(Piece::Rook, Piece::Black),
-                 Piece::create(Piece::Pawn, Piece::Black),
-                 Piece::create(Piece::Pawn, Piece::Black),
-                 Piece::create(Piece::Pawn, Piece::Black),
-                 Piece::create(Piece::Pawn, Piece::Black),
-                 Piece::create(Piece::Pawn, Piece::Black),
-                 Piece::create(Piece::Pawn, Piece::Black),
-                 Piece::create(Piece::Pawn, Piece::Black),
-                 Piece::create(Piece::Pawn, Piece::Black),
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::Empty,
-                 Piece::create(Piece::Pawn, Piece::White),
-                 Piece::create(Piece::Pawn, Piece::White),
-                 Piece::create(Piece::Pawn, Piece::White),
-                 Piece::create(Piece::Pawn, Piece::White),
-                 Piece::create(Piece::Pawn, Piece::White),
-                 Piece::create(Piece::Pawn, Piece::White),
-                 Piece::create(Piece::Pawn, Piece::White),
-                 Piece::create(Piece::Pawn, Piece::White),
-                 Piece::create(Piece::Rook, Piece::White),
-                 Piece::create(Piece::Knight, Piece::White),
-                 Piece::create(Piece::Bishop, Piece::White),
-                 Piece::create(Piece::Queen, Piece::White),
-                 Piece::create(Piece::King, Piece::White),
-                 Piece::create(Piece::Bishop, Piece::White),
-                 Piece::create(Piece::Knight, Piece::White),
-                 Piece::create(Piece::Rook, Piece::White)};
+int board[64];
+
 int main() {
     sf::RenderWindow window(
         sf::VideoMode(BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE),
@@ -82,10 +22,38 @@ int main() {
     pieces.loadFromFile("assets/Chess_Pieces_Sprite.png");
     sf::Sprite s(pieces);
 
+    Piece::EPDToBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", board);
+
     while (window.isOpen()) {
+        sf::Vector2i pos =
+            sf::Mouse::getPosition(window) - sf::Vector2i(offset);
+
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) window.close();
+
+            /////drag and drop///////
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    int boxX = (pos.x / SQUARE_SIZE) + 1;
+                    int boxY = (pos.y / SQUARE_SIZE) + 1;
+
+                    std::cout << "x: " << boxX << ", y: " << boxY << std::endl;
+                }
+            }
+
+            // if (event.type == sf::Event::MouseButtonReleased)
+            //     if (event.key.code == sf::Mouse::Left) {
+            //         isMove = false;
+            //         Vector2f p =
+            //             f[n].getPosition() + Vector2f(size / 2, size / 2);
+            //         newPos = Vector2f(size * int(p.x / size),
+            //                           size * int(p.y / size));
+            //         str = toChessNote(oldPos) + toChessNote(newPos);
+            //         move(str);
+            //         if (oldPos != newPos) position += str + " ";
+            //         f[n].setPosition(newPos);
+            //     }
         }
 
         window.clear(sf::Color::White);
