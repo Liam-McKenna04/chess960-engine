@@ -19,15 +19,33 @@
 #
 
 CC = g++
+CFLAGS = -std=c++11
 #SRCS = main.cc
 SRCS = ${wildcard *.cc}
 OBJS = ${SRCS:.cc=.o}
 INCLS = ${SRCS:.cc=.h}
 
+a: $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o a
 
-build: $(OBJS)
+$(OBJS):
 	g++ -c main.cc -I/opt/homebrew/Cellar/sfml/2.6.1/include    
-	g++ main.o -o chess -L/opt/homebrew/Cellar/sfml/2.6.1/lib  -lsfml-graphics -lsfml-window -lsfml-system
 
-clean: $(OBJS)
-	rm *.o chess
+depend: Makefile.dep
+	$(CC) -MM $(SRCS) > Makefile.dep
+
+Makefile.dep:
+	touch Makefile.dep
+
+.PHONY: submit clean
+
+submit:
+	rm -f submit.zip
+	zip submit.zip $(SRCS) $(INCLS) Makefile Makefile.dep
+
+clean:
+	rm -f *.o a.out core
+
+include Makefile.dep
+
+

@@ -1,14 +1,16 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 
-#include "Piece.hpp"
+#include "Board.hpp"
 const int BOARD_SIZE = 8;
 const int SQUARE_SIZE = 80;
 sf::Vector2f offset(0, 0);
 
-int size = 133;
+const int BOX_SIZE = 133;
 
-int board[64];
+bool isInsideBoard(int x, int y) {
+    return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
+}
 
 int main() {
     sf::RenderWindow window(
@@ -22,38 +24,80 @@ int main() {
     pieces.loadFromFile("assets/Chess_Pieces_Sprite.png");
     sf::Sprite s(pieces);
 
-    Piece::EPDToBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", board);
+    Board board = Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    board.generateMoves();
+
+    bool isMoving = false;
+    int movingPiece = 0;
+    sf::Vector2i movingPieceOrigin;
+    sf::Vector2i clickedSquare(-1, -1);
+
+    // Create a vector to store the target squares
+    std::vector<int> targetSquares;
+
+    // Create a circle shape for indicating target squares
+    sf::CircleShape targetIndicator(SQUARE_SIZE / 6);
+    targetIndicator.setFillColor(
+        sf::Color(128, 128, 128, 128));  // Semi-transparent gray
 
     while (window.isOpen()) {
-        sf::Vector2i pos =
+        sf::Vector2i mousePos =
             sf::Mouse::getPosition(window) - sf::Vector2i(offset);
 
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) window.close();
 
-            /////drag and drop///////
             if (event.type == sf::Event::MouseButtonPressed) {
                 if (event.mouseButton.button == sf::Mouse::Left) {
-                    int boxX = (pos.x / SQUARE_SIZE) + 1;
-                    int boxY = (pos.y / SQUARE_SIZE) + 1;
+                    int boxX = (mousePos.x / SQUARE_SIZE);
+                    int boxY = (mousePos.y / SQUARE_SIZE);
+                    int startSquare = boxY * 8 + boxX;
+                    if (isInsideBoard(boxX, boxY)) {
+                        clickedSquare = sf::Vector2i(boxX, boxY);
 
-                    std::cout << "x: " << boxX << ", y: " << boxY << std::endl;
+                        if (!isMoving && board.square[startSquare] != 0) {
+                            // Clear previous target squares
+                            targetSquares.clear();
+
+                            // Populate target squares
+                            for (Move move : board.moves) {
+                                if (move.startSquare == startSquare) {
+                                    targetSquares.push_back(move.targetSquare);
+                                }
+                            }
+
+                            isMoving = true;
+                            movingPiece = board.square[startSquare];
+                            movingPieceOrigin = sf::Vector2i(boxX, boxY);
+                            board.square[startSquare] =
+                                0;  // Remove piece from original position
+                        }
+                    }
                 }
             }
 
-            // if (event.type == sf::Event::MouseButtonReleased)
-            //     if (event.key.code == sf::Mouse::Left) {
-            //         isMove = false;
-            //         Vector2f p =
-            //             f[n].getPosition() + Vector2f(size / 2, size / 2);
-            //         newPos = Vector2f(size * int(p.x / size),
-            //                           size * int(p.y / size));
-            //         str = toChessNote(oldPos) + toChessNote(newPos);
-            //         move(str);
-            //         if (oldPos != newPos) position += str + " ";
-            //         f[n].setPosition(newPos);
-            //     }
+            if (event.type == sf::Event::MouseButtonReleased) {
+                if (event.mouseButton.button == sf::Mouse::Left && isMoving) {
+                    int boxX = (mousePos.x / SQUARE_SIZE);
+                    int boxY = (mousePos.y / SQUARE_SIZE);
+
+                    if (isInsideBoard(boxX, boxY)) {
+                        board.square[boxY * 8 + boxX] = movingPiece;
+                    } else {
+                        // If released outside, return the piece to its original
+                        // position
+                        board.square[movingPieceOrigin.y * 8 +
+                                     movingPieceOrigin.x] = movingPiece;
+                    }
+                    isMoving = false;
+                    board.generateMoves();
+                    // board.colorTurn = -board.colorTurn;
+                    clickedSquare = sf::Vector2i(-1, -1);
+                    targetSquares.clear();  // Clear target squares when the
+                                            // move is complete
+                }
+            }
         }
 
         window.clear(sf::Color::White);
@@ -62,7 +106,9 @@ int main() {
             for (int j = 0; j < BOARD_SIZE; ++j) {
                 square.setPosition(i * SQUARE_SIZE, j * SQUARE_SIZE);
 
-                if ((i + j) % 2 == 0) {
+                if (clickedSquare.x == i && clickedSquare.y == j) {
+                    square.setFillColor(sf::Color(236, 126, 106));
+                } else if ((i + j) % 2 == 0) {
                     square.setFillColor(
                         sf::Color(238, 238, 210));  // Light squares
                 } else {
@@ -73,17 +119,38 @@ int main() {
                 window.draw(square);
 
                 // Draw chess pieces
-                int piece = board[j * 8 + i];
+                int piece = board.square[j * 8 + i];
                 if (piece != 0) {
                     int x = abs(piece) - 1;
-                    int y = (piece > 0) ? 1 : 0;
-                    s.setTextureRect(
-                        sf::IntRect(x * size, y * size, size, size));
+                    int y = (piece > 0) ? 0 : 1;
+                    s.setTextureRect(sf::IntRect(x * BOX_SIZE, y * BOX_SIZE,
+                                                 BOX_SIZE, BOX_SIZE));
                     s.setScale(0.6, 0.6);
                     s.setPosition(i * SQUARE_SIZE, j * SQUARE_SIZE);
                     window.draw(s);
                 }
+
+                // Draw target indicators
+                if (std::find(targetSquares.begin(), targetSquares.end(),
+                              j * 8 + i) != targetSquares.end()) {
+                    targetIndicator.setPosition(
+                        i * SQUARE_SIZE + SQUARE_SIZE / 2 - SQUARE_SIZE / 6,
+                        j * SQUARE_SIZE + SQUARE_SIZE / 2 - SQUARE_SIZE / 6);
+                    window.draw(targetIndicator);
+                }
             }
+        }
+
+        // Draw moving piece
+        if (isMoving) {
+            int x = abs(movingPiece) - 1;
+            int y = (movingPiece > 0) ? 0 : 1;
+            s.setTextureRect(
+                sf::IntRect(x * BOX_SIZE, y * BOX_SIZE, BOX_SIZE, BOX_SIZE));
+            s.setScale(0.6, 0.6);
+            s.setPosition(mousePos.x - SQUARE_SIZE / 2,
+                          mousePos.y - SQUARE_SIZE / 2);
+            window.draw(s);
         }
 
         window.display();
