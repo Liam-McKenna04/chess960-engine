@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <algorithm>  // Add this for std::find
 #include <iostream>
 
 #include "Board.hpp"
@@ -81,18 +82,25 @@ int main() {
                 if (event.mouseButton.button == sf::Mouse::Left && isMoving) {
                     int boxX = (mousePos.x / SQUARE_SIZE);
                     int boxY = (mousePos.y / SQUARE_SIZE);
+                    int targetSquare = boxY * 8 + boxX;
 
-                    if (isInsideBoard(boxX, boxY)) {
-                        board.square[boxY * 8 + boxX] = movingPiece;
+                    if (isInsideBoard(boxX, boxY) &&
+                        (movingPieceOrigin.y * 8 + movingPieceOrigin.x) !=
+                            targetSquare &&
+                        std::find(targetSquares.begin(), targetSquares.end(),
+                                  targetSquare) != targetSquares.end()) {
+                        // Move is valid
+                        board.square[targetSquare] = movingPiece;
+                        board.colorTurn = -board.colorTurn;
+                        std::cout << board.colorTurn << std::endl;
                     } else {
-                        // If released outside, return the piece to its original
-                        // position
+                        // If released outside or not a target square, return
+                        // the piece to its original position
                         board.square[movingPieceOrigin.y * 8 +
                                      movingPieceOrigin.x] = movingPiece;
                     }
                     isMoving = false;
                     board.generateMoves();
-                    // board.colorTurn = -board.colorTurn;
                     clickedSquare = sf::Vector2i(-1, -1);
                     targetSquares.clear();  // Clear target squares when the
                                             // move is complete
@@ -101,7 +109,6 @@ int main() {
         }
 
         window.clear(sf::Color::White);
-
         for (int i = 0; i < BOARD_SIZE; ++i) {
             for (int j = 0; j < BOARD_SIZE; ++j) {
                 square.setPosition(i * SQUARE_SIZE, j * SQUARE_SIZE);

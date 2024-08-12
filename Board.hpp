@@ -50,7 +50,7 @@ class Board {  // board at a specific state
     }
 
    public:
-    bool colorTurn = 1;  // positive 1 for white, -1 for black
+    int colorTurn = 1;  // positive 1 for white, -1 for black
     string castleStatus = "KkQq";
     int square[64];
     vector<Move> moves;
@@ -117,8 +117,8 @@ class Board {  // board at a specific state
     void generateMoves() {
         moves.clear();
         for (int startSquare; startSquare < 64; startSquare++) {
-            int piece = square[startSquare];
-            if (Piece::matchesColor(piece, colorTurn)) {
+            int piece = abs(square[startSquare]);
+            if (Piece::matchesColor(square[startSquare], colorTurn)) {
                 if (piece == Piece::Queen || piece == Piece::Bishop ||
                     piece == Piece::Rook) {
                     generateStraightMoves(startSquare, piece);
@@ -126,6 +126,8 @@ class Board {  // board at a specific state
                 if (piece == Piece::Knight) {
                     generateKnightMoves(startSquare);
                 }
+                if (piece == Piece::Pawn) {
+                                }
             }
         }
     };
@@ -134,7 +136,6 @@ class Board {  // board at a specific state
         int startDirIndex = (piece == Piece::Bishop) ? 4 : 0;
         int endDirIndex = (piece == Piece::Rook) ? 4 : 8;
 
-        cout << startDirIndex << endDirIndex << endl;
         // Generates the moves of a Queen, Bishop, or Knight
         // Don't love this implementation
         for (int directionIndex = startDirIndex; directionIndex < endDirIndex;
