@@ -32,6 +32,10 @@ class Piece {
         return ((piece1 != 0 && piece2 != 0 && ((piece1 < 0) == (piece2 < 0))));
     }
 
+    static bool isPiece(int piece, int pieceType) {
+        return abs(piece) == pieceType;
+    }
+
     static std::string getName(int piece) {
         switch (abs(piece)) {
             case King:

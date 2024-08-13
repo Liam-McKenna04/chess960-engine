@@ -1,8 +1,9 @@
 #include <SFML/Graphics.hpp>
-#include <algorithm>  // Add this for std::find
+#include <algorithm>
 #include <iostream>
 
 #include "Board.hpp"
+
 const int BOARD_SIZE = 8;
 const int SQUARE_SIZE = 80;
 sf::Vector2f offset(0, 0);
@@ -33,13 +34,10 @@ int main() {
     sf::Vector2i movingPieceOrigin;
     sf::Vector2i clickedSquare(-1, -1);
 
-    // Create a vector to store the target squares
     std::vector<int> targetSquares;
 
-    // Create a circle shape for indicating target squares
     sf::CircleShape targetIndicator(SQUARE_SIZE / 6);
-    targetIndicator.setFillColor(
-        sf::Color(128, 128, 128, 128));  // Semi-transparent gray
+    targetIndicator.setFillColor(sf::Color(128, 128, 128, 128));
 
     while (window.isOpen()) {
         sf::Vector2i mousePos =
@@ -58,10 +56,8 @@ int main() {
                         clickedSquare = sf::Vector2i(boxX, boxY);
 
                         if (!isMoving && board.square[startSquare] != 0) {
-                            // Clear previous target squares
                             targetSquares.clear();
 
-                            // Populate target squares
                             for (Move move : board.moves) {
                                 if (move.startSquare == startSquare) {
                                     targetSquares.push_back(move.targetSquare);
@@ -71,8 +67,6 @@ int main() {
                             isMoving = true;
                             movingPiece = board.square[startSquare];
                             movingPieceOrigin = sf::Vector2i(boxX, boxY);
-                            board.square[startSquare] =
-                                0;  // Remove piece from original position
                         }
                     }
                 }
@@ -89,21 +83,25 @@ int main() {
                             targetSquare &&
                         std::find(targetSquares.begin(), targetSquares.end(),
                                   targetSquare) != targetSquares.end()) {
-                        // Move is valid
-                        board.square[targetSquare] = movingPiece;
-                        board.colorTurn = -board.colorTurn;
-                        std::cout << board.colorTurn << std::endl;
-                    } else {
-                        // If released outside or not a target square, return
-                        // the piece to its original position
-                        board.square[movingPieceOrigin.y * 8 +
-                                     movingPieceOrigin.x] = movingPiece;
+                        // Find the corresponding move in board.moves
+                        Move* selectedMove = nullptr;
+                        for (const Move& move : board.moves) {
+                            if (move.startSquare == (movingPieceOrigin.y * 8 +
+                                                     movingPieceOrigin.x) &&
+                                move.targetSquare == targetSquare) {
+                                selectedMove = new Move(move);
+                                break;
+                            }
+                        }
+
+                        if (selectedMove) {
+                            board.makeMove(*selectedMove);
+                            delete selectedMove;
+                        }
                     }
                     isMoving = false;
-                    board.generateMoves();
                     clickedSquare = sf::Vector2i(-1, -1);
-                    targetSquares.clear();  // Clear target squares when the
-                                            // move is complete
+                    targetSquares.clear();
                 }
             }
         }
@@ -115,6 +113,9 @@ int main() {
 
                 if (clickedSquare.x == i && clickedSquare.y == j) {
                     square.setFillColor(sf::Color(236, 126, 106));
+                } else if (board.isLastMoveTile(j * 8 + i)) {
+                    square.setFillColor(sf::Color(
+                        255, 255, 0, 128));  // Light yellow for last move
                 } else if ((i + j) % 2 == 0) {
                     square.setFillColor(
                         sf::Color(238, 238, 210));  // Light squares
@@ -127,7 +128,8 @@ int main() {
 
                 // Draw chess pieces
                 int piece = board.square[j * 8 + i];
-                if (piece != 0) {
+                if (piece != 0 && (!isMoving || (i != movingPieceOrigin.x ||
+                                                 j != movingPieceOrigin.y))) {
                     int x = abs(piece) - 1;
                     int y = (piece > 0) ? 0 : 1;
                     s.setTextureRect(sf::IntRect(x * BOX_SIZE, y * BOX_SIZE,

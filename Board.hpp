@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cctype>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -11,12 +12,14 @@
 
 using namespace std;
 struct Move {
-    Move(int startSquare, int targetSquare) {
+    Move(int startSquare, int targetSquare, bool isEnPassant = false) {
         this->startSquare = startSquare;
         this->targetSquare = targetSquare;
+        this->isEnPassant = isEnPassant;
     }
     int startSquare;
     int targetSquare;
+    bool isEnPassant;
 };
 
 class Board {  // board at a specific state
@@ -54,6 +57,9 @@ class Board {  // board at a specific state
     string castleStatus = "KkQq";
     int square[64];
     vector<Move> moves;
+    Move lastMove = Move(-1, -1);
+    int enPassantTarget =
+        -1;  // The square where en passant capture is possible
 
     Board(const string& epd) {
         istringstream iss(epd);
@@ -74,6 +80,34 @@ class Board {  // board at a specific state
         numSquaresToEdge = initializeNumSquaresToEdge();
     }
 
+    void makeMove(const Move& move) {
+        int piece = square[move.startSquare];
+        square[move.targetSquare] = piece;
+        square[move.startSquare] = Piece::Empty;
+
+        // Handle en passant capture
+        if (move.isEnPassant) {
+            int capturedPawnSquare = move.targetSquare + (colorTurn * 8);
+            square[capturedPawnSquare] = Piece::Empty;
+        }
+
+        // Set en passant target for the next move
+        if (abs(piece) == Piece::Pawn &&
+            abs(move.startSquare - move.targetSquare) == 16) {
+            enPassantTarget = (move.startSquare + move.targetSquare) / 2;
+        } else {
+            enPassantTarget = -1;
+        }
+
+        colorTurn = -colorTurn;
+        lastMove = move;
+        generateMoves();
+    }
+
+    bool isLastMoveTile(int tileIndex) const {
+        return tileIndex == lastMove.startSquare ||
+               tileIndex == lastMove.targetSquare;
+    }
     char toEPDChar(int piece) {
         char pieceChars[] = " KQBNRP";
         char c = pieceChars[abs(piece)];
@@ -116,25 +150,30 @@ class Board {  // board at a specific state
 
     void generateMoves() {
         moves.clear();
-        for (int startSquare; startSquare < 64; startSquare++) {
-            int piece = abs(square[startSquare]);
+        for (int startSquare = 0; startSquare < 64; startSquare++) {
+            int piece = square[startSquare];
             if (Piece::matchesColor(square[startSquare], colorTurn)) {
-                if (piece == Piece::Queen || piece == Piece::Bishop ||
-                    piece == Piece::Rook) {
+                if (Piece::isPiece(piece, Piece::King)) {
+                    generateKingMoves(startSquare);
+                }
+                if (Piece::isPiece(piece, Piece::Queen) ||
+                    Piece::isPiece(piece, Piece::Bishop) ||
+                    Piece::isPiece(piece, Piece::Rook)) {
                     generateStraightMoves(startSquare, piece);
                 }
-                if (piece == Piece::Knight) {
+                if (Piece::isPiece(piece, Piece::Knight)) {
                     generateKnightMoves(startSquare);
                 }
-                if (piece == Piece::Pawn) {
-                                }
+                if (Piece::isPiece(piece, Piece::Pawn)) {
+                    generatePawnMoves(startSquare);
+                }
             }
         }
     };
 
     void generateStraightMoves(int startSquare, int piece) {
-        int startDirIndex = (piece == Piece::Bishop) ? 4 : 0;
-        int endDirIndex = (piece == Piece::Rook) ? 4 : 8;
+        int startDirIndex = (abs(piece) == Piece::Bishop) ? 4 : 0;
+        int endDirIndex = (abs(piece) == Piece::Rook) ? 4 : 8;
 
         // Generates the moves of a Queen, Bishop, or Knight
         // Don't love this implementation
@@ -184,8 +223,58 @@ class Board {  // board at a specific state
             }
         }
     }
+    void generateKingMoves(int startSquare) {
+        for (int directionIndex = 0; directionIndex < 8; directionIndex++) {
+            for (int n = 0;
+                 n < min(numSquaresToEdge[startSquare][directionIndex], 1);
+                 n++) {
+                int targetSquare =
+                    startSquare + DIRECTION_OFFSETS[directionIndex] * (n + 1);
+                int pieceOnTargetSquare = square[targetSquare];
+
+                // Blocked by piece of same color
+                if (Piece::matchesColor(colorTurn, pieceOnTargetSquare)) {
+                    break;
+                }
+                this->moves.push_back(Move(startSquare, targetSquare));
+            }
+        }
+    }
     void generatePawnMoves(int startSquare) {
-        // Need to keep track of last move, I'll do that tomorrow :sleep:
+        int forwardDirection = (colorTurn == 1) ? -8 : 8;
+        int startRank = (colorTurn == 1) ? 1 : 6;
+
+        // Determine forward moves
+        int oneForwardSquare = startSquare + forwardDirection;
+        if (square[oneForwardSquare] == 0) {
+            moves.push_back(Move(startSquare, oneForwardSquare));
+            int twoForwardSquare = startSquare + (-16 * colorTurn);
+
+            // move 2 forward on starting rank rule
+            if (square[twoForwardSquare] == 0 &&
+                (colorTurn == -1 && numSquaresToEdge[startSquare][0] == 6 ||
+                 colorTurn == 1 && numSquaresToEdge[startSquare][0] == 1)) {
+                moves.push_back(Move(startSquare, twoForwardSquare));
+            }
+        }
+        // Capturing
+
+        // Check if pawn is not on the A file (left edge) for left capture
+        for (int direction : {-1, 1}) {  // Check both left and right diagonals
+            int targetSquare = startSquare + forwardDirection + direction;
+            if (targetSquare >= 0 && targetSquare < 64 &&
+                abs((startSquare % 8) - (targetSquare % 8)) == 1) {
+                // Normal capture
+                if (square[targetSquare] != Piece::Empty &&
+                    !Piece::matchesColor(square[targetSquare], colorTurn)) {
+                    moves.push_back(Move(startSquare, targetSquare));
+                }
+                // En passant capture
+                if (targetSquare == enPassantTarget) {
+                    moves.push_back(Move(startSquare, targetSquare, true));
+                }
+            }
+        }
     }
 };
 
