@@ -18,34 +18,18 @@
 # and replace cc with cpp.
 #
 
-CC = g++
-CFLAGS = -std=c++11
-#SRCS = main.cc
-SRCS = ${wildcard *.cc}
-OBJS = ${SRCS:.cc=.o}
-INCLS = ${SRCS:.cc=.h}
+CXX = g++
+CXXFLAGS = -std=c++11 -I/opt/homebrew/Cellar/sfml/2.6.1/include
+LDFLAGS = -L/opt/homebrew/Cellar/sfml/2.6.1/lib
+LDLIBS = -lsfml-graphics -lsfml-window -lsfml-system
 
-a: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o a
+a: main.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) main.o -o chess $(LDLIBS)
 
-$(OBJS):
-	g++ -c main.cc -I/opt/homebrew/Cellar/sfml/2.6.1/include    
-
-depend: Makefile.dep
-	$(CC) -MM $(SRCS) > Makefile.dep
-
-Makefile.dep:
-	touch Makefile.dep
-
-.PHONY: submit clean
-
-submit:
-	rm -f submit.zip
-	zip submit.zip $(SRCS) $(INCLS) Makefile Makefile.dep
+main.o: main.cc
+	$(CXX) $(CXXFLAGS) -c main.cc
 
 clean:
-	rm -f *.o a.out core
-
-include Makefile.dep
+	rm -f *.o a
 
 
