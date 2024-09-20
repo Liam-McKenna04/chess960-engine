@@ -2,8 +2,41 @@
 
 #include <bitset>
 #include <iostream>
+#include <random>
+
 static const uint64_t FILE_A = 0x0101010101010101ULL;
 static const uint64_t FILE_H = 0x8080808080808080ULL;
+
+std::array<std::array<uint64_t, 64>, 12> zobristTable;
+std::array<uint64_t, 4> zobristCastle;
+std::array<uint64_t, 8> zobristEnPassant;
+uint64_t zobristBlackToMove;
+
+void initializeZobristTables() {
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dis;
+
+    // Initialize zobristTable
+    for (auto& pieceArray : zobristTable) {
+        for (auto& value : pieceArray) {
+            value = dis(gen);
+        }
+    }
+
+    // Initialize zobristCastle
+    for (auto& value : zobristCastle) {
+        value = dis(gen);
+    }
+
+    // Initialize zobristEnPassant
+    for (auto& value : zobristEnPassant) {
+        value = dis(gen);
+    }
+
+    // Initialize zobristBlackToMove
+    zobristBlackToMove = dis(gen);
+}
 
 Board::Board(const std::string& epd)
     : lastMove(-1, -1), enPassantTarget(-1), colorTurn(1), halfMoveClock(0) {
@@ -48,6 +81,8 @@ Board::Board(const std::string& epd)
 
     positionHistory.push_back(boardToEPD());
     generateMoves();
+
+    initializeZobristTables();
 }
 
 int Board::charToPieceIndex(char c) const {
@@ -879,4 +914,28 @@ bool Board::isKingInCheck(int color) const {
 
 bool Board::isCheckmate() {
     return moves.empty() && isKingInCheck(colorTurn);
+}
+
+uint64_t Board::computeHash() const {
+    uint64_t hash = 0ULL;
+
+    // Use predefined random numbers for each piece on each square
+    for (int i = 0; i < 12; ++i) {
+        uint64_t pieces = bitboards[i];
+        while (pieces) {
+            int square = __builtin_ctzll(pieces);
+            pieces &= ~(1ULL << square);
+            hash ^= zobristTable[i][square];
+        }
+    }
+
+    // Include other aspects like castling rights, en passant target, and side to move
+    if (canWhiteCastleKingside) hash ^= zobristCastle[0];
+    if (canWhiteCastleQueenside) hash ^= zobristCastle[1];
+    if (canBlackCastleKingside) hash ^= zobristCastle[2];
+    if (canBlackCastleQueenside) hash ^= zobristCastle[3];
+    if (enPassantTarget != -1) hash ^= zobristEnPassant[enPassantTarget % 8];
+    if (colorTurn == -1) hash ^= zobristBlackToMove;
+
+    return hash;
 }

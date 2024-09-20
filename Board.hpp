@@ -29,8 +29,6 @@ struct Move {
 
 class Board {
    private:
-    // Bitboards for each piece type and color
-    std::array<uint64_t, 12> bitboards;  // Indexes correspond to PieceType enum
 
     // Bitboards for convenience
     uint64_t whitePieces;
@@ -69,6 +67,10 @@ class Board {
     bool isFiftyMoveRule() const;
 
    public:
+    // Bitboards for each piece type and color
+    std::array<uint64_t, 12> bitboards;  // Indexes correspond to PieceType enum
+
+
     int colorTurn;  // 1 for white, -1 for black
     std::string castleStatus;
     std::vector<Move> moves;
@@ -93,6 +95,7 @@ class Board {
     bool isKingInCheck(int color) const;
     bool isCheckmate();
     bool isDraw() const;
+    uint64_t computeHash() const;
 };
 
 #endif  // BOARD_HPP
