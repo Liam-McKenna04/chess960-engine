@@ -459,6 +459,7 @@ class ChessGame {
         if (board->isCheckmate()) {
             winner = (board->colorTurn == 1) ? "Black" : "White";
             showMenu = true;
+            gameEnded = true;
         }
     }
 
