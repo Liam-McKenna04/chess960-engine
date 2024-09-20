@@ -49,8 +49,14 @@ class Board {
 
     void addPawnPromotionMoves(int startSquare, int targetSquare);
 
-    uint64_t knightAttacks(int square) const;
-    uint64_t kingAttacks(int square) const;
+    uint64_t knightAttackBitboard(int square) const;
+    uint64_t kingAttackBitboard(int square) const;
+    uint64_t bishopAttackBitboard(int square, uint64_t occupancy) const;
+    uint64_t rookAttackBitboard(int square, uint64_t occupancy) const;
+    uint64_t queenAttackBitboard(int square, uint64_t occupancy) const;
+    bool isSquareAttacked(int square, int attackingColor) const;
+
+    bool isMoveLegal(const Move& move);
 
    public:
     int colorTurn;  // 1 for white, -1 for black
@@ -61,7 +67,7 @@ class Board {
 
     explicit Board(const std::string& epd);
 
-    void makeMove(const Move& move);
+    void makeMove(const Move& move, bool updateMoves = true);
     bool isLastMoveTile(int tileIndex) const;
     std::string boardToEPD() const;
     void generateMoves();

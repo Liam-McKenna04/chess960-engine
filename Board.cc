@@ -2,6 +2,8 @@
 
 #include <bitset>
 #include <iostream>
+static const uint64_t FILE_A = 0x0101010101010101ULL;
+static const uint64_t FILE_H = 0x8080808080808080ULL;
 
 Board::Board(const std::string& epd)
     : lastMove(-1, -1), enPassantTarget(-1), colorTurn(1) {
@@ -147,7 +149,7 @@ std::string Board::boardToEPD() const {
     return epd.str();
 }
 
-void Board::makeMove(const Move& move) {
+void Board::makeMove(const Move& move, bool updateMoves) {
     int pieceIndex = getPieceAt(move.startSquare);
     if (pieceIndex == -1) {
         throw std::runtime_error("No piece on start square");
@@ -199,7 +201,9 @@ void Board::makeMove(const Move& move) {
     }
 
     colorTurn = -colorTurn;
-    lastMove = move;
+    if (updateMoves) {
+        lastMove = move;
+    }
 
     // Handle castling
     if (pieceIndex == PieceType::WhiteKing || pieceIndex == PieceType::BlackKing) {
@@ -236,7 +240,9 @@ void Board::makeMove(const Move& move) {
         if (move.startSquare == 63) canBlackCastleKingside = false;
     }
 
-    generateMoves();
+    if (updateMoves) {
+        generateMoves();
+    }
 }
 
 void Board::updateAggregateBitboards() {
@@ -276,7 +282,17 @@ void Board::generateMoves() {
         generateQueenMoves(PieceType::BlackQueen);
         generateKingMoves(PieceType::BlackKing);
     }
+
+    std::vector<Move> legalMoves;
+    for (const Move& move : moves) {
+        if (isMoveLegal(move)) {
+            legalMoves.push_back(move);
+        }
+    }
+    moves = std::move(legalMoves);
 }
+
+
 
 // Knight move generation
 void Board::generateKnightMoves(int knightPieceIndex) {
@@ -288,7 +304,7 @@ void Board::generateKnightMoves(int knightPieceIndex) {
         uint64_t knightBit = 1ULL << square;
         knights &= ~knightBit;  // Remove this knight from knights
 
-        uint64_t attacks = knightAttacks(square) & ~ownPieces;  // Exclude own pieces
+        uint64_t attacks = knightAttackBitboard(square) & ~ownPieces;  // Exclude own pieces
 
         while (attacks) {
             int targetSquare = __builtin_ctzll(attacks);
@@ -300,7 +316,7 @@ void Board::generateKnightMoves(int knightPieceIndex) {
     }
 }
 
-uint64_t Board::knightAttacks(int square) const {
+uint64_t Board::knightAttackBitboard(int square) const {
     static const int knightOffsets[8] = {17, 15, 10, 6, -6, -10, -15, -17};
     uint64_t attacks = 0ULL;
     int file = square % 8;
@@ -331,7 +347,7 @@ void Board::generateKingMoves(int kingPieceIndex) {
         uint64_t kingBit = 1ULL << square;
         kings &= ~kingBit;
 
-        uint64_t attacks = kingAttacks(square) & ~ownPieces;
+        uint64_t attacks = kingAttackBitboard(square) & ~ownPieces;
 
         while (attacks) {
             int targetSquare = __builtin_ctzll(attacks);
@@ -367,7 +383,7 @@ void Board::generateKingMoves(int kingPieceIndex) {
         }
     }
 }
-uint64_t Board::kingAttacks(int square) const {
+uint64_t Board::kingAttackBitboard(int square) const {
     static const int kingOffsets[8] = {8, 1, -1, -8, 9, 7, -7, -9};
     uint64_t attacks = 0ULL;
     int file = square % 8;
@@ -662,4 +678,145 @@ void Board::addPawnPromotionMoves(int startSquare, int targetSquare) {
     }
 }
 
-// Implement other piece move generations similarly
+bool Board::isSquareAttacked(int square, int attackingColor) const {
+    uint64_t targetBit = 1ULL << square;
+    uint64_t opponentPawns = (attackingColor == 1) ? bitboards[PieceType::WhitePawn] : bitboards[PieceType::BlackPawn];
+    uint64_t opponentKnights = (attackingColor == 1) ? bitboards[PieceType::WhiteKnight] : bitboards[PieceType::BlackKnight];
+    uint64_t opponentBishops = (attackingColor == 1) ? bitboards[PieceType::WhiteBishop] : bitboards[PieceType::BlackBishop];
+    uint64_t opponentRooks = (attackingColor == 1) ? bitboards[PieceType::WhiteRook] : bitboards[PieceType::BlackRook];
+    uint64_t opponentQueens = (attackingColor == 1) ? bitboards[PieceType::WhiteQueen] : bitboards[PieceType::BlackQueen];
+    uint64_t opponentKing = (attackingColor == 1) ? bitboards[PieceType::WhiteKing] : bitboards[PieceType::BlackKing];
+
+    // Pawn attacks
+    if (attackingColor == 1) {  // White pawn attacks
+        uint64_t pawnAttacks = ((opponentPawns & ~FILE_H) << 9) | ((opponentPawns & ~FILE_A) << 7);
+        if (pawnAttacks & targetBit) return true;
+    } else {  // Black pawn attacks
+        uint64_t pawnAttacks = ((opponentPawns & ~FILE_A) >> 9) | ((opponentPawns & ~FILE_H) >> 7);
+        if (pawnAttacks & targetBit) return true;
+    }
+
+    // Knight attacks
+    uint64_t knightAttackers = 0ULL;
+    uint64_t knights = opponentKnights;
+    while (knights) {
+        int knightSquare = __builtin_ctzll(knights);
+        knights &= ~(1ULL << knightSquare);
+        knightAttackers |= knightAttackBitboard(knightSquare);
+    }
+    if (knightAttackers & targetBit) return true;
+
+    // King attacks
+    uint64_t kingAttackers = 0ULL;
+    uint64_t kings = opponentKing;
+    while (kings) {
+        int kingSquare = __builtin_ctzll(kings);
+        kings &= ~(1ULL << kingSquare);
+        kingAttackers |= kingAttackBitboard(kingSquare);
+    }
+    if (kingAttackers & targetBit) return true;
+
+    // Bishop and Queen attacks
+    uint64_t bishopAttackers = opponentBishops | opponentQueens;
+    if (bishopAttackBitboard(square, allPieces) & bishopAttackers) return true;
+
+    // Rook and Queen attacks
+    uint64_t rookAttackers = opponentRooks | opponentQueens;
+    if (rookAttackBitboard(square, allPieces) & rookAttackers) return true;
+
+    return false;
+}
+
+uint64_t Board::bishopAttackBitboard(int square, uint64_t occupancy) const {
+    uint64_t attacks = 0ULL;
+    static const int bishopOffsets[4] = {9, 7, -7, -9};
+
+    for (int offset : bishopOffsets) {
+        int targetSquare = square;
+        while (true) {
+            int fromFile = targetSquare % 8;
+            int fromRank = targetSquare / 8;
+
+            targetSquare += offset;
+            int toFile = targetSquare % 8;
+            int toRank = targetSquare / 8;
+
+            if (targetSquare < 0 || targetSquare >= 64 ||
+                std::abs(fromFile - toFile) != 1 || std::abs(fromRank - toRank) != 1)
+                break;
+
+            uint64_t targetBit = 1ULL << targetSquare;
+            attacks |= targetBit;
+
+            if (occupancy & targetBit) break;  // Blocked
+        }
+    }
+    return attacks;
+}
+
+uint64_t Board::rookAttackBitboard(int square, uint64_t occupancy) const {
+    uint64_t attacks = 0ULL;
+    static const int rookOffsets[4] = {8, -8, 1, -1};
+
+    for (int offset : rookOffsets) {
+        int targetSquare = square;
+        while (true) {
+            int fromFile = targetSquare % 8;
+            int fromRank = targetSquare / 8;
+
+            targetSquare += offset;
+            int toFile = targetSquare % 8;
+            int toRank = targetSquare / 8;
+
+            if (targetSquare < 0 || targetSquare >= 64 ||
+                ((offset == 1 || offset == -1) && (fromRank != toRank)))
+                break;
+
+            uint64_t targetBit = 1ULL << targetSquare;
+            attacks |= targetBit;
+
+            if (occupancy & targetBit) break;  // Blocked
+        }
+    }
+    return attacks;
+}
+
+bool Board::isMoveLegal(const Move& move) {
+    // Save the current state
+    auto savedBitboards = bitboards;
+    auto savedWhitePieces = whitePieces;
+    auto savedBlackPieces = blackPieces;
+    auto savedAllPieces = allPieces;
+    int savedEnPassantTarget = enPassantTarget;
+    bool savedCanWhiteCastleKingside = canWhiteCastleKingside;
+    bool savedCanWhiteCastleQueenside = canWhiteCastleQueenside;
+    bool savedCanBlackCastleKingside = canBlackCastleKingside;
+    bool savedCanBlackCastleQueenside = canBlackCastleQueenside;
+    int savedColorTurn = colorTurn;
+
+    // Make the move
+    makeMove(move, false);
+
+    // After makeMove, colorTurn is flipped
+    int kingPieceIndex = (savedColorTurn == 1) ? PieceType::WhiteKing : PieceType::BlackKing;
+    uint64_t kingBits = bitboards[kingPieceIndex];
+    bool inCheck = false;
+    if (kingBits) {
+        int kingSquare = __builtin_ctzll(kingBits);
+        inCheck = isSquareAttacked(kingSquare, -savedColorTurn);
+    }
+
+    // Revert the move
+    bitboards = savedBitboards;
+    whitePieces = savedWhitePieces;
+    blackPieces = savedBlackPieces;
+    allPieces = savedAllPieces;
+    enPassantTarget = savedEnPassantTarget;
+    canWhiteCastleKingside = savedCanWhiteCastleKingside;
+    canWhiteCastleQueenside = savedCanWhiteCastleQueenside;
+    canBlackCastleKingside = savedCanBlackCastleKingside;
+    canBlackCastleQueenside = savedCanBlackCastleQueenside;
+    colorTurn = savedColorTurn;
+
+    return !inCheck;
+}
