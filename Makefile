@@ -19,17 +19,23 @@
 #
 
 CXX = g++
-CXXFLAGS = -std=c++11 -I/opt/homebrew/Cellar/sfml/2.6.1/include
+CXXFLAGS = -std=c++17 -I/opt/homebrew/Cellar/sfml/2.6.1/include
 LDFLAGS = -L/opt/homebrew/Cellar/sfml/2.6.1/lib
 LDLIBS = -lsfml-graphics -lsfml-window -lsfml-system
 
-a: main.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) main.o -o chess $(LDLIBS)
+# Change the target name from 'a' to 'chess'
+chess: main.o board.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 main.o: main.cc
-	$(CXX) $(CXXFLAGS) -c main.cc
+	$(CXX) $(CXXFLAGS) -c $<
+
+board.o: board.cc board.hpp
+	$(CXX) $(CXXFLAGS) -c $<
 
 clean:
-	rm -f *.o a
+	rm -f *.o chess
+
+.PHONY: clean
 
 

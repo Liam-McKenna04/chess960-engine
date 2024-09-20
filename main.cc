@@ -2,8 +2,10 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <optional>
 
 #include "Board.hpp"
+#include "Piece.hpp"
 
 const int BOARD_SIZE = 8;
 const int SQUARE_SIZE = 80;
@@ -24,13 +26,13 @@ class ChessGame {
 
     std::unique_ptr<Board> board;
     bool isMoving = false;
-    int movingPiece = 0;
+    int movingPieceIndex = -1;
     sf::Vector2i movingPieceOrigin;
     sf::Vector2i clickedSquare{-1, -1};
     std::vector<int> targetSquares;
 
     bool showPromotionInterface = false;
-    std::unique_ptr<Move> pendingPromotion;
+    std::optional<Move> pendingPromotion;
 
     void loadAssets() {
         if (!piecesTexture.loadFromFile("assets/Chess_Pieces_Sprite.png")) {
@@ -75,34 +77,47 @@ class ChessGame {
         }
     }
 
-    void handlePromotionSelection(const sf::Vector2i& mousePos) {
-        if (mousePos.y >= 3 * SQUARE_SIZE && mousePos.y < 4 * SQUARE_SIZE &&
-            mousePos.x >= 2 * SQUARE_SIZE && mousePos.x < 6 * SQUARE_SIZE) {
-            int selectedPiece = (mousePos.x - 2 * SQUARE_SIZE) / SQUARE_SIZE;
-            const int promotionPieces[4] = {Piece::Queen, Piece::Bishop,
-                                            Piece::Knight, Piece::Rook};
-            pendingPromotion->promotionPiece =
-                promotionPieces[selectedPiece] * board->colorTurn;
+void handlePromotionSelection(const sf::Vector2i& mousePos) {
+    if (mousePos.y >= 3 * SQUARE_SIZE && mousePos.y < 4 * SQUARE_SIZE &&
+        mousePos.x >= 2 * SQUARE_SIZE && mousePos.x < 6 * SQUARE_SIZE) {
+        int selectedPiece = (mousePos.x - 2 * SQUARE_SIZE) / SQUARE_SIZE;
+        int promotionPieceTypes[4] = {
+            BasePieceType::Queen, BasePieceType::Rook,
+            BasePieceType::Bishop, BasePieceType::Knight
+        };
+
+        if (pendingPromotion.has_value()) {
+            int baseType = promotionPieceTypes[selectedPiece];
+            pendingPromotion->promotionPiece = baseType + (board->colorTurn == 1 ? 0 : 6);
             board->makeMove(*pendingPromotion);
             pendingPromotion.reset();
             showPromotionInterface = false;
         }
     }
+}
+
+
 
     void handlePieceSelection(int boxX, int boxY) {
         clickedSquare = sf::Vector2i(boxX, boxY);
         int startSquare = boxY * 8 + boxX;
+        int pieceIndex = board->getPieceAt(startSquare);
 
-        if (!isMoving && board->square[startSquare] != 0) {
+        if (!isMoving && pieceIndex != -1) {
+            int pieceColor = pieceIndex < 6 ? 1 : -1;
+            if (pieceColor != board->colorTurn) return;
+
             targetSquares.clear();
             for (const Move& move : board->moves) {
                 if (move.startSquare == startSquare) {
                     targetSquares.push_back(move.targetSquare);
                 }
             }
-            isMoving = true;
-            movingPiece = board->square[startSquare];
-            movingPieceOrigin = sf::Vector2i(boxX, boxY);
+            if (!targetSquares.empty()) {
+                isMoving = true;
+                movingPieceIndex = pieceIndex;
+                movingPieceOrigin = sf::Vector2i(boxX, boxY);
+            }
         }
     }
 
@@ -129,7 +144,7 @@ class ChessGame {
             if (it != board->moves.end()) {
                 if (it->promotionPiece != 0) {
                     showPromotionInterface = true;
-                    pendingPromotion.reset(new Move(*it));
+                    pendingPromotion = *it;
                 } else {
                     board->makeMove(*it);
                 }
@@ -166,19 +181,26 @@ class ChessGame {
         }
     }
 
-    void drawPiece(int i, int j) {
-        int piece = board->square[j * 8 + i];
-        if (piece != 0 && (!isMoving || (i != movingPieceOrigin.x ||
-                                         j != movingPieceOrigin.y))) {
-            int x = abs(piece) - 1;
-            int y = (piece > 0) ? 0 : 1;
-            pieceSprite.setTextureRect(
-                sf::IntRect(x * PIECE_SPRITE_SIZE, y * PIECE_SPRITE_SIZE,
-                            PIECE_SPRITE_SIZE, PIECE_SPRITE_SIZE));
-            pieceSprite.setPosition(i * SQUARE_SIZE, j * SQUARE_SIZE);
-            window.draw(pieceSprite);
-        }
+void drawPiece(int i, int j) {
+    int squareIndex = j * 8 + i;
+    int pieceIndex = board->getPieceAt(squareIndex);
+
+    if (pieceIndex != -1 &&
+        (!isMoving || (i != movingPieceOrigin.x || j != movingPieceOrigin.y))) {
+        int basePieceType = pieceIndex % 6;
+        int color = (pieceIndex < 6) ? 0 : 1;
+
+        // Map basePieceType to asset index
+        int assetIndex = basePieceType;
+
+        pieceSprite.setTextureRect(
+            sf::IntRect(assetIndex * PIECE_SPRITE_SIZE, color * PIECE_SPRITE_SIZE,
+                        PIECE_SPRITE_SIZE, PIECE_SPRITE_SIZE));
+        pieceSprite.setPosition(i * SQUARE_SIZE, j * SQUARE_SIZE);
+        window.draw(pieceSprite);
     }
+}
+
 
     void drawTargetIndicator(int i, int j) {
         if (std::find(targetSquares.begin(), targetSquares.end(), j * 8 + i) !=
@@ -193,8 +215,8 @@ class ChessGame {
     void drawMovingPiece() {
         if (isMoving) {
             sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-            int x = abs(movingPiece) - 1;
-            int y = (movingPiece > 0) ? 0 : 1;
+            int x = movingPieceIndex % 6;
+            int y = (movingPieceIndex < 6) ? 0 : 1;
             pieceSprite.setTextureRect(
                 sf::IntRect(x * PIECE_SPRITE_SIZE, y * PIECE_SPRITE_SIZE,
                             PIECE_SPRITE_SIZE, PIECE_SPRITE_SIZE));
@@ -204,22 +226,32 @@ class ChessGame {
         }
     }
 
-    void drawPromotionInterface() {
-        if (!showPromotionInterface) return;
+void drawPromotionInterface() {
+    if (!showPromotionInterface) return;
 
-        promotionBackground.setPosition(2 * SQUARE_SIZE, 3 * SQUARE_SIZE);
-        window.draw(promotionBackground);
+    promotionBackground.setPosition(2 * SQUARE_SIZE, 3 * SQUARE_SIZE);
+    window.draw(promotionBackground);
 
-        int color = (board->colorTurn == 1) ? 0 : 1;
-        for (int i = 0; i < 4; ++i) {
-            int piece = i + 1;  // Queen, Rook, Bishop, Knight
-            pieceSprite.setTextureRect(sf::IntRect(
-                piece * PIECE_SPRITE_SIZE, color * PIECE_SPRITE_SIZE,
-                PIECE_SPRITE_SIZE, PIECE_SPRITE_SIZE));
-            pieceSprite.setPosition((2 + i) * SQUARE_SIZE, 3 * SQUARE_SIZE);
-            window.draw(pieceSprite);
-        }
+    int color = (board->colorTurn == 1) ? 0 : 1;
+    // Promotion pieces in your asset's order: Queen, Rook, Bishop, Knight
+    int promotionPieceTypes[4] = {
+        BasePieceType::Queen, BasePieceType::Rook,
+        BasePieceType::Bishop, BasePieceType::Knight
+    };
+
+    for (int i = 0; i < 4; ++i) {
+        int basePieceType = promotionPieceTypes[i];
+        int pieceIndex = basePieceType + (color == 0 ? 0 : 6);
+        int textureX = basePieceType * PIECE_SPRITE_SIZE;
+
+        pieceSprite.setTextureRect(sf::IntRect(
+            textureX, color * PIECE_SPRITE_SIZE,
+            PIECE_SPRITE_SIZE, PIECE_SPRITE_SIZE));
+        pieceSprite.setPosition((2 + i) * SQUARE_SIZE, 3 * SQUARE_SIZE);
+        window.draw(pieceSprite);
     }
+}
+
 
    public:
     ChessGame()
@@ -227,8 +259,22 @@ class ChessGame {
               sf::VideoMode(BOARD_SIZE * SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE),
               "Chess Board") {
         loadAssets();
-        board.reset(new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
-        board->generateMoves();
+        try {
+            board = std::make_unique<Board>(
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+            std::cout << "Board created successfully" << std::endl;
+            std::cout << "Initial board state: " << board->boardToEPD()
+                      << std::endl;
+
+            board->generateMoves();
+            std::cout << "Moves generated successfully" << std::endl;
+            std::cout << "Number of legal moves: " << board->moves.size()
+                      << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Error during board initialization: " << e.what()
+                      << std::endl;
+            throw;
+        }
     }
 
     void run() {
