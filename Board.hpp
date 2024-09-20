@@ -79,6 +79,9 @@ class Board {
     bool canWhiteCastleQueenside;
     bool canBlackCastleKingside;
     bool canBlackCastleQueenside;
+
+    bool isKingInCheck(int color) const;
+    bool isCheckmate();
 };
 
 #endif  // BOARD_HPP

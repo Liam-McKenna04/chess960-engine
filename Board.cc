@@ -820,3 +820,17 @@ bool Board::isMoveLegal(const Move& move) {
 
     return !inCheck;
 }
+
+bool Board::isKingInCheck(int color) const {
+    int kingPieceIndex = (color == 1) ? PieceType::WhiteKing : PieceType::BlackKing;
+    uint64_t kingBits = bitboards[kingPieceIndex];
+    if (kingBits) {
+        int kingSquare = __builtin_ctzll(kingBits);
+        return isSquareAttacked(kingSquare, -color);
+    }
+    return false;  // King is not on the board (should not happen in a standard game)
+}
+
+bool Board::isCheckmate() {
+    return moves.empty() && isKingInCheck(colorTurn);
+}
