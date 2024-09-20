@@ -6,34 +6,29 @@
 #include <unordered_map>
 #include <limits>
 #include <algorithm>
-#include <chrono>
 
 class BasicEngine : public Engine {
 public:
     Move getBestMove(const Board& board) override {
+        int depth = 5;  // You can adjust the depth as needed
+        int alpha = std::numeric_limits<int>::min();
+        int beta = std::numeric_limits<int>::max();
+        int bestScore = alpha;
         Move bestMove;
-        int maxTime = 5000;  // Maximum thinking time in milliseconds
-        auto startTime = std::chrono::high_resolution_clock::now();
+        transpositionTable.clear();
 
-        for (int depth = 1; depth <= 20; ++depth) {
-            Move currentBestMove = searchAtDepth(board, depth);
-            
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
-            
-            if (elapsedTime >= maxTime) {
-                break;
+        for (const Move& move : board.moves) {
+            Board tempBoard = board;
+            tempBoard.makeMove(move);
+            int score = -alphaBeta(tempBoard, depth - 1, -beta, -alpha);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = move;
             }
-            
-            bestMove = currentBestMove;
+            alpha = std::max(alpha, bestScore);
         }
 
         return bestMove;
-    }
-
-    Move searchAtDepth(const Board& board, int depth) {
-        // Implement alpha-beta search at the given depth
-        // ...
     }
 
 private:
@@ -54,39 +49,20 @@ private:
 
     int moveOrderingHeuristic(Board& board, const Move& move) {
         int score = 0;
-        Piece movingPiece = board.getPieceAt(move.sourceSquare);
-        Piece capturedPiece = board.getPieceAt(move.targetSquare);
-
-        // Prioritize captures based on MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
-        if (capturedPiece != -1) {
-            score += 10000 + (capturedPiece % 6) * 10 - (movingPiece % 6);
+        // Assign high scores to captures, promotions, and checks
+        if (board.getPieceAt(move.targetSquare) != -1) {
+            score += 1000;  // Capture
         }
-
         if (move.promotionPiece != 0) {
-            score += 9000 + move.promotionPiece;  // Prioritize promotions
+            score += 800;  // Promotion
         }
-
-        // Consider checks
-        Board tempBoard = board;
-        tempBoard.makeMove(move);
-        if (tempBoard.isKingInCheck(board.colorTurn)) {
-            score += 8000;
-        }
-
-        // Add history heuristic
-        score += getHistoryScore(move);
-
-        // Add killer move heuristic
-        if (isKillerMove(move, board.plyCount)) {
-            score += 7000;
-        }
-
+        // Additional heuristics can be added
         return score;
     }
 
     int alphaBeta(Board& board, int depth, int alpha, int beta) {
-        if (depth == 0) {
-            return quiescence(board, alpha, beta);
+        if (depth == 0 || board.isDraw() || board.isCheckmate()) {
+            return evaluate(board);
         }
 
         uint64_t hash = board.computeHash();
@@ -156,62 +132,7 @@ private:
             score += pieceValues[i] * pieceCount;
         }
 
-        // Add positional evaluation
-        score += evaluatePosition(board);
-        
-        // Add pawn structure evaluation
-        score += evaluatePawnStructure(board);
-        
-        // Add king safety evaluation
-        score += evaluateKingSafety(board);
-
-        // Consider the side to move
-        score *= (board.colorTurn == WHITE ? 1 : -1);
-
         return score;
-    }
-
-    // Implement these new evaluation functions
-    int evaluatePosition(const Board& board) const {
-        // Evaluate piece positions using piece-square tables
-        // ...
-    }
-
-    int evaluatePawnStructure(const Board& board) const {
-        // Evaluate pawn chains, isolated pawns, doubled pawns, etc.
-        // ...
-    }
-
-    int evaluateKingSafety(const Board& board) const {
-        // Evaluate king safety, considering pawn shield, open files near the king, etc.
-        // ...
-    }
-
-    int quiescence(Board& board, int alpha, int beta) {
-        int standPat = evaluate(board);
-        if (standPat >= beta) {
-            return beta;
-        }
-        if (alpha < standPat) {
-            alpha = standPat;
-        }
-
-        board.generateCaptures();
-        sortMoves(board, board.captures);
-
-        for (const Move& move : board.captures) {
-            Board childBoard = board;
-            childBoard.makeMove(move);
-            int score = -quiescence(childBoard, -beta, -alpha);
-            if (score >= beta) {
-                return beta;
-            }
-            if (score > alpha) {
-                alpha = score;
-            }
-        }
-
-        return alpha;
     }
 };
 
