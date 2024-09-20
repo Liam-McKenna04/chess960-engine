@@ -4,15 +4,17 @@
 #include <random>
 
 class RandomEngine : public Engine {
+private:
+    std::mt19937 rng;
+
 public:
+    RandomEngine() : rng(std::random_device{}()) {}
+
     Move getBestMove(const Board& board) override {
-        std::vector<Move>& moves = board.moves;
-        if (moves.empty()) {
+        if (board.moves.empty()) {
             throw std::runtime_error("No legal moves available");
         }
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, moves.size() - 1);
-        return moves[dis(gen)];
+        std::uniform_int_distribution<> dist(0, board.moves.size() - 1);
+        return board.moves[dist(rng)];
     }
 };

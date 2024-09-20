@@ -6,7 +6,7 @@ static const uint64_t FILE_A = 0x0101010101010101ULL;
 static const uint64_t FILE_H = 0x8080808080808080ULL;
 
 Board::Board(const std::string& epd)
-    : lastMove(-1, -1), enPassantTarget(-1), colorTurn(1) {
+    : lastMove(-1, -1), enPassantTarget(-1), colorTurn(1), halfMoveClock(0) {
     // Initialize bitboards to zero
     bitboards.fill(0);
     whitePieces = 0;
@@ -46,6 +46,7 @@ Board::Board(const std::string& epd)
         squareIndex -= 16;  // Move to the next rank
     }
 
+    positionHistory.push_back(boardToEPD());
     generateMoves();
 }
 
@@ -239,6 +240,16 @@ void Board::makeMove(const Move& move, bool updateMoves) {
         if (move.startSquare == 56) canBlackCastleQueenside = false;
         if (move.startSquare == 63) canBlackCastleKingside = false;
     }
+
+    // Update halfMoveClock
+    if (getPieceAt(move.targetSquare) != -1 || charToPieceIndex('P') == (getPieceAt(move.startSquare) % 6)) {
+        halfMoveClock = 0;
+    } else {
+        halfMoveClock++;
+    }
+
+    // Update position history
+    positionHistory.push_back(boardToEPD());
 
     if (updateMoves) {
         generateMoves();
@@ -779,6 +790,41 @@ uint64_t Board::rookAttackBitboard(int square, uint64_t occupancy) const {
         }
     }
     return attacks;
+}
+
+bool Board::isStalemate() const {
+    if (isKingInCheck(colorTurn)) {
+        return false;
+    }
+    return moves.empty();
+}
+
+bool Board::isThreefoldRepetition() const {
+    if (positionHistory.size() < 8) {
+        return false;
+    }
+    
+    std::string currentPosition = boardToEPD();
+    int repetitionCount = 0;
+    
+    for (const auto& position : positionHistory) {
+        if (position == currentPosition) {
+            repetitionCount++;
+            if (repetitionCount >= 3) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+bool Board::isFiftyMoveRule() const {
+    return halfMoveClock >= 100;
+}
+
+bool Board::isDraw() const {
+    return isStalemate() || isThreefoldRepetition() || isFiftyMoveRule();
 }
 
 bool Board::isMoveLegal(const Move& move) {

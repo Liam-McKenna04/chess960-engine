@@ -6,7 +6,8 @@
 
 #include "Board.hpp"
 #include "Piece.hpp"
-#include "Engine.hpp"
+#include "RandomEngine.hpp"
+#include "BasicEngine.hpp"
 
 const int BOARD_SIZE = 8;
 const int SQUARE_SIZE = 80;
@@ -57,6 +58,15 @@ class ChessGame {
     sf::Text blackEngineText;
     bool whiteIsEngine = false;
     bool blackIsEngine = true;
+
+    bool isDraw = false;
+
+    sf::Text engineSelectionText;
+    sf::RectangleShape randomEngineButton;
+    sf::RectangleShape basicEngineButton;
+    sf::Text randomEngineText;
+    sf::Text basicEngineText;
+    bool useRandomEngine = true;
 
     void loadAssets() {
         if (!piecesTexture.loadFromFile("assets/Chess_Pieces_Sprite.png")) {
@@ -119,6 +129,23 @@ class ChessGame {
         blackEngineText.setFont(font);
         blackEngineText.setCharacterSize(16);
         blackEngineText.setString("Engine");
+
+        // Setup engine selection text and buttons
+        engineSelectionText.setFont(font);
+        engineSelectionText.setCharacterSize(20);
+        engineSelectionText.setFillColor(sf::Color::Black);
+        engineSelectionText.setString("Engine:");
+
+        randomEngineButton.setSize(buttonSize);
+        basicEngineButton.setSize(buttonSize);
+
+        randomEngineText.setFont(font);
+        randomEngineText.setCharacterSize(16);
+        randomEngineText.setString("Random");
+
+        basicEngineText.setFont(font);
+        basicEngineText.setCharacterSize(16);
+        basicEngineText.setString("Basic");
     }
 
     void handleEvents() {
@@ -153,6 +180,10 @@ class ChessGame {
             blackIsEngine = false;
         } else if (blackEngineButton.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
             blackIsEngine = true;
+        } else if (randomEngineButton.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
+            useRandomEngine = true;
+        } else if (basicEngineButton.getGlobalBounds().contains(mousePos.x, mousePos.y)) {
+            useRandomEngine = false;
         }
     }
 
@@ -356,6 +387,10 @@ class ChessGame {
             menuText.setString(winner + " wins by checkmate!");
             menuText.setPosition(SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE / 2 - 150);
             window.draw(menuText);
+        } else if (isDraw) {
+            menuText.setString("The game is a draw!");
+            menuText.setPosition(SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE / 2 - 150);
+            window.draw(menuText);
         }
 
         // Draw white selection
@@ -390,8 +425,24 @@ class ChessGame {
         blackEngineText.setPosition(blackEngineButton.getPosition().x + 25, blackEngineButton.getPosition().y + 10);
         window.draw(blackEngineText);
 
+        // Draw engine selection
+        engineSelectionText.setPosition(SQUARE_SIZE, BOARD_SIZE * SQUARE_SIZE / 2 + 50);
+        window.draw(engineSelectionText);
+
+        randomEngineButton.setPosition(SQUARE_SIZE + 100, BOARD_SIZE * SQUARE_SIZE / 2 + 50);
+        randomEngineButton.setFillColor(useRandomEngine ? sf::Color(100, 100, 100) : sf::Color(150, 150, 150));
+        window.draw(randomEngineButton);
+        randomEngineText.setPosition(randomEngineButton.getPosition().x + 25, randomEngineButton.getPosition().y + 10);
+        window.draw(randomEngineText);
+
+        basicEngineButton.setPosition(SQUARE_SIZE + 220, BOARD_SIZE * SQUARE_SIZE / 2 + 50);
+        basicEngineButton.setFillColor(useRandomEngine ? sf::Color(150, 150, 150) : sf::Color(100, 100, 100));
+        window.draw(basicEngineButton);
+        basicEngineText.setPosition(basicEngineButton.getPosition().x + 30, basicEngineButton.getPosition().y + 10);
+        window.draw(basicEngineText);
+
         // Draw start button
-        startButton.setPosition((BOARD_SIZE * SQUARE_SIZE - 200) / 2, BOARD_SIZE * SQUARE_SIZE / 2 + 50);
+        startButton.setPosition((BOARD_SIZE * SQUARE_SIZE - 200) / 2, BOARD_SIZE * SQUARE_SIZE / 2 + 100);
         window.draw(startButton);
 
         startButtonText.setPosition(
@@ -460,6 +511,10 @@ class ChessGame {
             winner = (board->colorTurn == 1) ? "Black" : "White";
             showMenu = true;
             gameEnded = true;
+        } else if (board->isDraw()) {
+            isDraw = true;
+            showMenu = true;
+            gameEnded = true;
         }
     }
 
@@ -473,16 +528,17 @@ class ChessGame {
         showPromotionInterface = false;
         pendingPromotion.reset();
         winner.clear();
+        isDraw = false;
 
         // Set up engines based on selection
         if (whiteIsEngine) {
-            setWhiteEngine(std::make_unique<RandomEngine>());
+            setWhiteEngine(createSelectedEngine());
         } else {
             setWhiteEngine(nullptr);
         }
 
         if (blackIsEngine) {
-            setBlackEngine(std::make_unique<RandomEngine>());
+            setBlackEngine(createSelectedEngine());
         } else {
             setBlackEngine(nullptr);
         }
@@ -494,6 +550,14 @@ class ChessGame {
 
     void setBlackEngine(std::unique_ptr<Engine> engine) {
         blackEngine = std::move(engine);
+    }
+
+    std::unique_ptr<Engine> createSelectedEngine() {
+        if (useRandomEngine) {
+            return std::make_unique<RandomEngine>();
+        } else {
+            return std::make_unique<BasicEngine>();
+        }
     }
 };
 

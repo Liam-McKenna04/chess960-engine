@@ -16,6 +16,9 @@ struct Move {
     int promotionPiece;  // PieceType index or 0
     bool isCastling;
 
+    // Add this default constructor
+    Move() : startSquare(-1), targetSquare(-1), isEnPassant(false), promotionPiece(0), isCastling(false) {}
+
     Move(int start, int target, bool enPassant = false, int promotion = 0, bool isCastling = false)
         : startSquare(start),
           targetSquare(target),
@@ -58,6 +61,13 @@ class Board {
 
     bool isMoveLegal(const Move& move);
 
+    std::vector<std::string> positionHistory;
+    int halfMoveClock;
+
+    bool isStalemate() const;
+    bool isThreefoldRepetition() const;
+    bool isFiftyMoveRule() const;
+
    public:
     int colorTurn;  // 1 for white, -1 for black
     std::string castleStatus;
@@ -82,6 +92,7 @@ class Board {
 
     bool isKingInCheck(int color) const;
     bool isCheckmate();
+    bool isDraw() const;
 };
 
 #endif  // BOARD_HPP
