@@ -14,12 +14,14 @@ struct Move {
     int targetSquare;    // 0..63
     bool isEnPassant;
     int promotionPiece;  // PieceType index or 0
+    bool isCastling;
 
-    Move(int start, int target, bool enPassant = false, int promotion = 0)
+    Move(int start, int target, bool enPassant = false, int promotion = 0, bool isCastling = false)
         : startSquare(start),
           targetSquare(target),
           isEnPassant(enPassant),
-          promotionPiece(promotion) {}
+          promotionPiece(promotion),
+          isCastling(isCastling) {}
 };
 
 class Board {
@@ -66,6 +68,11 @@ class Board {
 
     // Helper methods
     int getPieceAt(int square) const;  // Returns PieceType index or -1 if empty
+
+    bool canWhiteCastleKingside;
+    bool canWhiteCastleQueenside;
+    bool canBlackCastleKingside;
+    bool canBlackCastleQueenside;
 };
 
 #endif  // BOARD_HPP

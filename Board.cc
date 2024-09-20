@@ -15,6 +15,10 @@ Board::Board(const std::string& epd)
     int squareIndex = 56;  // Start from rank 8
     std::istringstream iss(epd);
     std::string token;
+    canWhiteCastleKingside = true;
+    canWhiteCastleQueenside = true;
+    canBlackCastleKingside = true;
+    canBlackCastleQueenside = true;
 
     while (std::getline(iss, token, '/')) {
         for (char c : token) {
@@ -197,6 +201,41 @@ void Board::makeMove(const Move& move) {
     colorTurn = -colorTurn;
     lastMove = move;
 
+    // Handle castling
+    if (pieceIndex == PieceType::WhiteKing || pieceIndex == PieceType::BlackKing) {
+        if (std::abs(move.startSquare - move.targetSquare) == 2) {
+            // Castling move
+            int rookStartSquare, rookTargetSquare;
+            if (move.targetSquare > move.startSquare) {
+                // Kingside castling
+                rookStartSquare = move.startSquare + 3;
+                rookTargetSquare = move.startSquare + 1;
+            } else {
+                // Queenside castling
+                rookStartSquare = move.startSquare - 4;
+                rookTargetSquare = move.startSquare - 1;
+            }
+            int rookPieceIndex = getPieceAt(rookStartSquare);
+            bitboards[rookPieceIndex] &= ~(1ULL << rookStartSquare);
+            bitboards[rookPieceIndex] |= (1ULL << rookTargetSquare);
+        }
+    }
+
+    // Update castling rights
+    if (pieceIndex == PieceType::WhiteKing) {
+        canWhiteCastleKingside = false;
+        canWhiteCastleQueenside = false;
+    } else if (pieceIndex == PieceType::BlackKing) {
+        canBlackCastleKingside = false;
+        canBlackCastleQueenside = false;
+    } else if (pieceIndex == PieceType::WhiteRook) {
+        if (move.startSquare == 0) canWhiteCastleQueenside = false;
+        if (move.startSquare == 7) canWhiteCastleKingside = false;
+    } else if (pieceIndex == PieceType::BlackRook) {
+        if (move.startSquare == 56) canBlackCastleQueenside = false;
+        if (move.startSquare == 63) canBlackCastleKingside = false;
+    }
+
     generateMoves();
 }
 
@@ -288,11 +327,11 @@ void Board::generateKingMoves(int kingPieceIndex) {
     uint64_t ownPieces = (colorTurn == 1) ? whitePieces : blackPieces;
 
     while (kings) {
-        int square = __builtin_ctzll(kings);  // Get least significant bit index
+        int square = __builtin_ctzll(kings);
         uint64_t kingBit = 1ULL << square;
-        kings &= ~kingBit;  // Remove this king from kings
+        kings &= ~kingBit;
 
-        uint64_t attacks = kingAttacks(square) & ~ownPieces;  // Exclude own pieces
+        uint64_t attacks = kingAttacks(square) & ~ownPieces;
 
         while (attacks) {
             int targetSquare = __builtin_ctzll(attacks);
@@ -301,9 +340,33 @@ void Board::generateKingMoves(int kingPieceIndex) {
 
             moves.emplace_back(square, targetSquare);
         }
+
+        // Generate castling moves
+        if (colorTurn == 1) {
+            if (canWhiteCastleKingside && 
+            // !isSquareUnderAttack(4) && !isSquareUnderAttack(5) && !isSquareUnderAttack(6) &&
+                !(allPieces & ((1ULL << 5) | (1ULL << 6)))) {
+                moves.emplace_back(4, 6, false, 0, true);
+            }
+            if (canWhiteCastleQueenside &&
+            //  !isSquareUnderAttack(4) && !isSquareUnderAttack(3) && !isSquareUnderAttack(2) &&
+                !(allPieces & ((1ULL << 3) | (1ULL << 2) | (1ULL << 1)))) {
+                moves.emplace_back(4, 2, false, 0, true);
+            }
+        } else {
+            if (canBlackCastleKingside && 
+            // !isSquareUnderAttack(60) && !isSquareUnderAttack(61) && !isSquareUnderAttack(62) &&
+                !(allPieces & ((1ULL << 61) | (1ULL << 62)))) {
+                moves.emplace_back(60, 62, false, 0, true);
+            }
+            if (canBlackCastleQueenside && 
+            // !isSquareUnderAttack(60) && !isSquareUnderAttack(59) && !isSquareUnderAttack(58) &&
+                !(allPieces & ((1ULL << 59) | (1ULL << 58) | (1ULL << 57)))) {
+                moves.emplace_back(60, 58, false, 0, true);
+            }
+        }
     }
 }
-
 uint64_t Board::kingAttacks(int square) const {
     static const int kingOffsets[8] = {8, 1, -1, -8, 9, 7, -7, -9};
     uint64_t attacks = 0ULL;
