@@ -17,30 +17,25 @@ void initializeZobristTables() {
     std::mt19937_64 gen(rd());
     std::uniform_int_distribution<uint64_t> dis;
 
-    // Initialize zobristTable
     for (auto& pieceArray : zobristTable) {
         for (auto& value : pieceArray) {
             value = dis(gen);
         }
     }
 
-    // Initialize zobristCastle
     for (auto& value : zobristCastle) {
         value = dis(gen);
     }
 
-    // Initialize zobristEnPassant
     for (auto& value : zobristEnPassant) {
         value = dis(gen);
     }
 
-    // Initialize zobristBlackToMove
     zobristBlackToMove = dis(gen);
 }
 
 Board::Board(const std::string& epd)
     : lastMove(-1, -1), enPassantTarget(-1), colorTurn(1), halfMoveClock(0) {
-    // Initialize bitboards to zero
     bitboards.fill(0);
     whitePieces = 0;
     blackPieces = 0;
@@ -216,15 +211,13 @@ void Board::makeMove(const Move& move, bool updateMoves) {
         bitboards[capturedPawnIndex] &= ~capturedPawnBit;
     }
 
-    // Handle promotion
+    // Promotion
     if (move.promotionPiece != 0) {
         bitboards[move.promotionPiece] |= toBit;
     } else {
-        // Move piece to target square
         bitboards[pieceIndex] |= toBit;
     }
 
-    // Update aggregate bitboards
     updateAggregateBitboards();
 
     // Update enPassantTarget
@@ -241,10 +234,9 @@ void Board::makeMove(const Move& move, bool updateMoves) {
         lastMove = move;
     }
 
-    // Handle castling
+    // Castling
     if (pieceIndex == PieceType::WhiteKing || pieceIndex == PieceType::BlackKing) {
         if (std::abs(move.startSquare - move.targetSquare) == 2) {
-            // Castling move
             int rookStartSquare, rookTargetSquare;
             if (move.targetSquare > move.startSquare) {
                 // Kingside castling
@@ -596,8 +588,7 @@ void Board::generatePawnMoves(int pawnPieceIndex) {
         pawns &= ~pawnBit;  // Remove this pawn from pawns
 
         if (colorTurn == 1) {
-            // White pawn moves
-            // One square forward
+            // White pawn moves one square forward
             int forwardSquare = square + 8;
             uint64_t forwardBit = 1ULL << forwardSquare;
             if (!(allPieces & forwardBit)) {
@@ -647,8 +638,7 @@ void Board::generatePawnMoves(int pawnPieceIndex) {
                 }
             }
         } else {
-            // Black pawn moves
-            // One square forward
+            // Black pawn moves one square forward
             int forwardSquare = square - 8;
             uint64_t forwardBit = 1ULL << forwardSquare;
             if (!(allPieces & forwardBit)) {

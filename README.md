@@ -1,6 +1,6 @@
 # Chess Game
 
-This is a chess game implementation using C++ and SFML graphics library. It features a graphical user interface, player vs. player, and player vs. AI gameplay modes.
+This is a chess game implementation using C++ and SFML graphics library. It features a graphical user interface, player vs. player, and player vs. AI gameplay modes, including support for Chess960 (Fischer Random Chess).
 
 ## How to Run
 
@@ -18,6 +18,7 @@ This is a chess game implementation using C++ and SFML graphics library. It feat
 
 - On startup, you'll see a menu where you can choose player types for White and Black (Human or AI).
 - You can also select the AI type: Random or Basic.
+- There's an option to play standard chess or Chess960 (Fischer Random Chess).
 - Click "Start Game" to begin.
 - Click and drag pieces to make moves.
 - The game will automatically detect checkmate, stalemate, and other draw conditions.
@@ -38,11 +39,14 @@ This is a chess game implementation using C++ and SFML graphics library. It feat
 
 6. **FEN Parsing**: Implements Forsyth–Edwards Notation (FEN) parsing to set up custom board positions.
 
+7. **Chess960 Setup**: Implements the rules for generating a valid Chess960 starting position, ensuring correct piece placement and castling rules.
+
 ## Future Improvements
 
 - Implement a more advanced AI using techniques like alpha-beta pruning and iterative deepening.
-- Add support for special rules like en passant and castling (if not already implemented).
+- Add support for special rules like en passant (if not already implemented).
 - Implement a game clock for timed matches.
+- Expand Chess960 support with additional features or analysis tools.
 
 ## Dependencies
 

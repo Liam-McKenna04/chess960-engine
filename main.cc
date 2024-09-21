@@ -17,6 +17,107 @@ bool isInsideBoard(int x, int y) {
     return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE;
 }
 
+void generateChess960Position(int N, std::string& epd) {
+    std::vector<char> positions(8, '1');
+
+    int N1 = N;
+
+    // Step a: Place bishops on opposite colors
+    int B1 = N1 % 4;
+    N1 = N1 / 4;
+    std::vector<int> lightSquares = {1,3,5,7};
+    positions[lightSquares[B1]] = 'B';
+
+    int B2 = N1 % 4;
+    N1 = N1 / 4;
+    std::vector<int> darkSquares = {0,2,4,6};
+    positions[darkSquares[B2]] = 'B';
+
+    // Step b: Place queen
+    std::vector<int> emptySquares;
+    for(int i = 0; i < 8; ++i) {
+        if(positions[i] == '1') emptySquares.push_back(i);
+    }
+    int Q = N1 % 6;
+    N1 = N1 / 6;
+    positions[emptySquares[Q]] = 'Q';
+
+    // Step c: Place knights
+    emptySquares.clear();
+    for(int i = 0; i < 8; ++i) {
+        if(positions[i] == '1') emptySquares.push_back(i);
+    }
+    int N4 = N1 % 10;
+
+    int knight1, knight2;
+    switch(N4) {
+        case 0: knight1 = 0; knight2 = 1; break;
+        case 1: knight1 = 0; knight2 = 2; break;
+        case 2: knight1 = 0; knight2 = 3; break;
+        case 3: knight1 = 0; knight2 = 4; break;
+        case 4: knight1 = 1; knight2 = 2; break;
+        case 5: knight1 = 1; knight2 = 3; break;
+        case 6: knight1 = 1; knight2 = 4; break;
+        case 7: knight1 = 2; knight2 = 3; break;
+        case 8: knight1 = 2; knight2 = 4; break;
+        case 9: knight1 = 3; knight2 = 4; break;
+    }
+    positions[emptySquares[knight1]] = 'N';
+    positions[emptySquares[knight2]] = 'N';
+
+    // Step d: Place remaining pieces R K R, with king between rooks
+    emptySquares.clear();
+    for(int i = 0; i < 8; ++i) {
+        if(positions[i] == '1') emptySquares.push_back(i);
+    }
+    // There should be exactly 3 empty squares left
+    positions[emptySquares[0]] = 'R';
+    positions[emptySquares[1]] = 'K';
+    positions[emptySquares[2]] = 'R';
+
+    // Convert positions to EPD string
+    std::string firstRank;
+    for(char c : positions) {
+        firstRank += c;
+    }
+    // Simplify the string by replacing sequences of '1's with numbers
+    std::string simplifiedRank;
+    int emptyCount = 0;
+    for(char c : firstRank) {
+        if(c == '1') {
+            emptyCount++;
+        } else {
+            if(emptyCount > 0) {
+                simplifiedRank += std::to_string(emptyCount);
+                emptyCount = 0;
+            }
+            simplifiedRank += c;
+        }
+    }
+    if(emptyCount > 0) {
+        simplifiedRank += std::to_string(emptyCount);
+    }
+
+    std::string secondRank = "PPPPPPPP";
+    std::string seventhRank = "pppppppp";
+
+    // For black's back rank, we mirror the simplifiedRank and convert to lowercase
+    std::string blackFirstRank = "";
+    for(int i = simplifiedRank.size() - 1; i >= 0; --i) {
+        char c = simplifiedRank[i];
+        if(c >= 'A' && c <= 'Z') {
+            blackFirstRank += std::tolower(c);
+        } else {
+            blackFirstRank += c;
+        }
+    }
+
+    // The full EPD is:
+    // blackFirstRank/seventhRank/8/8/8/8/secondRank/simplifiedRank
+
+    epd = blackFirstRank + "/pppppppp/8/8/8/8/PPPPPPPP/" + simplifiedRank;
+}
+
 class ChessGame {
    private:
     sf::RenderWindow window;
@@ -518,31 +619,40 @@ class ChessGame {
         }
     }
 
-    void resetBoard() {
-        board = std::make_unique<Board>("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-        isMoving = false;
-        gameEnded = false;
-        movingPieceIndex = -1;
-        clickedSquare = sf::Vector2i(-1, -1);
-        targetSquares.clear();
-        showPromotionInterface = false;
-        pendingPromotion.reset();
-        winner.clear();
-        isDraw = false;
+void resetBoard() {
+    std::string epd;
+    bool useChess960 = true; 
 
-        // Set up engines based on selection
-        if (whiteIsEngine) {
-            setWhiteEngine(createSelectedEngine());
-        } else {
-            setWhiteEngine(nullptr);
-        }
-
-        if (blackIsEngine) {
-            setBlackEngine(createSelectedEngine());
-        } else {
-            setBlackEngine(nullptr);
-        }
+    if (useChess960) {
+        int N = rand() % 960; 
+        generateChess960Position(N, epd);
+    } else {
+        epd = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
     }
+    board = std::make_unique<Board>(epd);
+    isMoving = false;
+    gameEnded = false;
+    movingPieceIndex = -1;
+    clickedSquare = sf::Vector2i(-1, -1);
+    targetSquares.clear();
+    showPromotionInterface = false;
+    pendingPromotion.reset();
+    winner.clear();
+    isDraw = false;
+
+    // Set up engines based on selection
+    if (whiteIsEngine) {
+        setWhiteEngine(createSelectedEngine());
+    } else {
+        setWhiteEngine(nullptr);
+    }
+
+    if (blackIsEngine) {
+        setBlackEngine(createSelectedEngine());
+    } else {
+        setBlackEngine(nullptr);
+    }
+}
 
     void setWhiteEngine(std::unique_ptr<Engine> engine) {
         whiteEngine = std::move(engine);
