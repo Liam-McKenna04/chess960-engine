@@ -406,23 +406,19 @@ void Board::generateKingMoves(int kingPieceIndex) {
         // Generate castling moves
         if (colorTurn == 1) {
             if (canWhiteCastleKingside && 
-            // !isSquareUnderAttack(4) && !isSquareUnderAttack(5) && !isSquareUnderAttack(6) &&
                 !(allPieces & ((1ULL << 5) | (1ULL << 6)))) {
                 moves.emplace_back(4, 6, false, 0, true);
             }
             if (canWhiteCastleQueenside &&
-            //  !isSquareUnderAttack(4) && !isSquareUnderAttack(3) && !isSquareUnderAttack(2) &&
                 !(allPieces & ((1ULL << 3) | (1ULL << 2) | (1ULL << 1)))) {
                 moves.emplace_back(4, 2, false, 0, true);
             }
         } else {
             if (canBlackCastleKingside && 
-            // !isSquareUnderAttack(60) && !isSquareUnderAttack(61) && !isSquareUnderAttack(62) &&
                 !(allPieces & ((1ULL << 61) | (1ULL << 62)))) {
                 moves.emplace_back(60, 62, false, 0, true);
             }
             if (canBlackCastleQueenside && 
-            // !isSquareUnderAttack(60) && !isSquareUnderAttack(59) && !isSquareUnderAttack(58) &&
                 !(allPieces & ((1ULL << 59) | (1ULL << 58) | (1ULL << 57)))) {
                 moves.emplace_back(60, 58, false, 0, true);
             }
@@ -588,11 +584,6 @@ void Board::generateQueenMoves(int queenPieceIndex) {
         }
     }
 }
-
-// Pawn move generation (already provided in previous code)
-// The implementation remains the same as previously shown
-
-// ... [Add the existing generatePawnMoves function here]
 
 
 void Board::generatePawnMoves(int pawnPieceIndex) {
@@ -863,6 +854,10 @@ bool Board::isDraw() const {
 }
 
 bool Board::isMoveLegal(const Move& move) {
+    // Slow way of checking if a move is legal, in the future we will not check if the move is 
+    //legal by making the move and then undoing it, instead we will use a more sophisticated algorithm
+
+
     // Save the current state
     auto savedBitboards = bitboards;
     auto savedWhitePieces = whitePieces;
@@ -909,7 +904,7 @@ bool Board::isKingInCheck(int color) const {
         int kingSquare = __builtin_ctzll(kingBits);
         return isSquareAttacked(kingSquare, -color);
     }
-    return false;  // King is not on the board (should not happen in a standard game)
+    return false;  // King is not on the board (should not happen)
 }
 
 bool Board::isCheckmate() {
@@ -919,7 +914,7 @@ bool Board::isCheckmate() {
 uint64_t Board::computeHash() const {
     uint64_t hash = 0ULL;
 
-    // Use predefined random numbers for each piece on each square
+    // Using random numbers for each piece on each square
     for (int i = 0; i < 12; ++i) {
         uint64_t pieces = bitboards[i];
         while (pieces) {
@@ -929,7 +924,6 @@ uint64_t Board::computeHash() const {
         }
     }
 
-    // Include other aspects like castling rights, en passant target, and side to move
     if (canWhiteCastleKingside) hash ^= zobristCastle[0];
     if (canWhiteCastleQueenside) hash ^= zobristCastle[1];
     if (canBlackCastleKingside) hash ^= zobristCastle[2];
