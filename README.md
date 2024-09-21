@@ -43,10 +43,9 @@ This is a chess game implementation using C++ and SFML graphics library. It feat
 
 ## Future Improvements
 
-- Implement a more advanced AI using techniques like alpha-beta pruning and iterative deepening.
-- Add support for special rules like en passant (if not already implemented).
+- Implement a more advanced AI using techniques like iterative deepening.
 - Implement a game clock for timed matches.
-- Expand Chess960 support with additional features or analysis tools.
+- Expand Chess960 support for castling
 
 ## Dependencies
 
