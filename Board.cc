@@ -608,8 +608,7 @@ void Board::generatePawnMoves(int pawnPieceIndex) {
                     }
                 }
             }
-            // Captures
-            // Diagonal left
+            // Captures diagonal left
             if ((square % 8) != 0) {
                 int captureSquare = square + 7;
                 uint64_t captureBit = 1ULL << captureSquare;
