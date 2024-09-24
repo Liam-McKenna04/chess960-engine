@@ -112,8 +112,6 @@ void generateChess960Position(int N, std::string& epd) {
         }
     }
 
-    // The full EPD is:
-    // blackFirstRank/seventhRank/8/8/8/8/secondRank/simplifiedRank
 
     epd = blackFirstRank + "/pppppppp/8/8/8/8/PPPPPPPP/" + simplifiedRank;
 }
