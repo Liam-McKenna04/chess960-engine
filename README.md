@@ -35,17 +35,16 @@ This is a chess game implementation using C++ and SFML graphics library. It feat
    - Random Engine: Selects a random legal move.
    - Basic Engine: Uses a simple evaluation function and alpha beta pruning for move searching. Also uses transposition tables to not have to compute positions that are the same.
 
-5. **Board Representation**: Uses a hybrid approach with both a piece-centric (array) and square-centric (bitboard) representation for efficient move generation and board evaluation.
+5. **Board Representation**: I use a hybrid approach with both a piece-centric (array) and square-centric (bitboard) representation for efficient move generation and board evaluation.
 
 6. **FEN Parsing**: Implements Forsyth–Edwards Notation (FEN) parsing and chess960 game seeds to set up custom board positions.
 
-7. **Chess960 Setup**: Implements the rules for generating a valid Chess960 starting position, ensuring correct piece placement. Castling is still yet to be implemented
+7. **Chess960 Setup**: Implements the rules for generating a valid Chess960 starting position, ensuring correct piece placement. 
 
 ## Future Improvements
 
 - Implement a more advanced AI using techniques like iterative deepening.
 - Implement a game clock for timed matches.
-- Expand Chess960 support for castling
 
 ## Dependencies
 
